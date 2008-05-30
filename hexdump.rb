@@ -1,8 +1,5 @@
-# ==============================================================================
-# EXTENDING CLASS STRING
-# ==============================================================================
-#
 # (C) Copyright 2004 by Tilo Sloboda <tools@unixgods.org>
+# (C) Copyright 2007 by Bernhard Stoeckner <elven@swordcoast.net>
 #
 # License:
 #         Freely available under the terms of the OpenSource "Artistic License"
@@ -25,89 +22,76 @@
 
 
 class String
-  #
-  # prints out a good'ol hexdump of the data contained in the string
-  #
-  # parameters:     sparse:   true / false     do we want to print multiple lines with zero values?
+	#
+	# returns out a good'ol hexdump of the data contained in the string
+	#
+	# parameters:     sparse:   true / false     do we want to print multiple lines with zero values?
 
-  def hexdump(sparse = false)
-     selfsize = self.size
-     first = true
+	def hexdump(sparse = false)
+		ret = ""
+		selfsize = self.size
+		first = true
 
-     print "\n index       0 1 2 3  4 5 6 7  8 9 A B  C D E F\n\n"
+		# print "\n index       0 1 2 3  4 5 6 7  8 9 A B  C D E F\n\n"
 
-     lines,rest = selfsize.divmod(16)
-     address = 0; i = 0    # we count them independently for future extension.
+		lines,rest = selfsize.divmod(16)
+		address = 0; i = 0    # we count them independently for future extension.
 
-     while lines > 0
-        str = self[i..i+15]
-        
-        # we don't print lines with all zeroes, unless it's the last line
+		while lines > 0
+			str = self[i..i+15]
+			
+			# we don't print lines with all zeroes, unless it's the last line
+			if str == "\0"*16     # if the 16 bytes are all zero
+				if (!sparse) || (sparse &&  lines == 1 && rest == 0)
+					str.tr!("\000-\037\177-\377",'.')
+					ret += sprintf( "%08x: %4s %4s %4s %4s %4s %4s %4s %4s  %s\n", 
+						address,
+						self[i..i+1].unpack('H4'), self[i+2..i+3].unpack('H4'),
+						self[i+4..i+5].unpack('H4'), self[i+6..i+7].unpack('H4'),
+						self[i+8..i+9].unpack('H4'), self[i+10..i+11].unpack('H4'),
+						self[i+12..i+13].unpack('H4'), self[i+14..i+15].unpack('H4'),
+					str)
+				else
+					ret += "  ....      00 .. 00 00 .. 00 00 .. 00 00 .. 00    ................\n" if first
+					first = false
+				end
+			else  # print string which is not all zeros
+				str.tr!("\000-\037\177-\377",'.')
+				ret += sprintf( "%08x: %4s %4s %4s %4s %4s %4s %4s %4s  %s\n", 
+					address,
+					self[i..i+1].unpack('H4'), self[i+2..i+3].unpack('H4'),
+					self[i+4..i+5].unpack('H4'), self[i+6..i+7].unpack('H4'),
+					self[i+8..i+9].unpack('H4'), self[i+10..i+11].unpack('H4'),
+					self[i+12..i+13].unpack('H4'), self[i+14..i+15].unpack('H4'),
+				str)
+				first = true
+			end
+			i += 16; address += 16; lines -= 1
+		 end
+		 
+		 # now do the remaining bytes, which don't fit a full line..
+		 # yikes - this is truly ugly!  REWRITE THIS!!
 
-        if str == "\0"*16     # if the 16 bytes are all zero
-        
-          if (!sparse) || (sparse &&  lines == 1 && rest == 0)
-             str.tr!("\000-\037\177-\377",'.')
-             printf( "%08x    %8s %8s %8s %8s    %s\n", 
-                address, self[i..i+3].unpack('H8'), self[i+4..i+7].unpack('H8'),
-                self[i+8..i+11].unpack('H8'), self[i+12..i+15].unpack('H8'), str)
-          else
-                print "  ....      00 .. 00 00 .. 00 00 .. 00 00 .. 00    ................\n" if first
-                first = false
-	  end
-
-        else  # print string which is not all zeros
-
-          str.tr!("\000-\037\177-\377",'.')
-          printf( "%08x    %8s %8s %8s %8s    %s\n", 
-                address, self[i..i+3].unpack('H8'), self[i+4..i+7].unpack('H8'),
-                self[i+8..i+11].unpack('H8'), self[i+12..i+15].unpack('H8'), str)
-          first = true
+		 if rest > 0
+				chunks2,rest2 = rest.divmod(4)     
+				j = i; k = 0
+				if (i < selfsize)
+					ret += sprintf( "%08x: ", address)
+					while (i < selfsize)
+						ret += sprintf "%02x", self[i]
+						i += 1; k += 1
+						ret += " " if ((i % 2) == 0)
+					end
+					for i in (k..15)
+						ret += "  "
+					end
+					str = self[j..selfsize]
+					str.tr!("\000-\037\177-\377",'.')
+					ret += " " * (4 - chunks2+1)
+					ret += sprintf("  %s\n", str)
+				end
+		 end
+		 ret
 	end
-        i += 16; address += 16; lines -= 1
-     end
-     
-     # now do the remaining bytes, which don't fit a full line..
-     # yikes - this is truly ugly!  REWRITE THIS!!
-
-     if rest > 0
-        chunks2,rest2 = rest.divmod(4)     
-        j = i; k = 0
-        if (i < selfsize)
-           printf( "%08x    ", address)
-           while (i < selfsize)
-                printf "%02x", self[i]
-                i += 1; k += 1
-                print  " " if ((i % 4) == 0)
-           end
-           for i in (k..15)
-                  print "  "
-           end
-           str = self[j..selfsize]
-           str.tr!("\000-\037\177-\377",'.')
-           print " " * (4 - chunks2+1)
-           printf("  %s\n", str)
-        end
-     end
-  end
 
 end
-
-
-
-__END__
-
-require 'hexdump'
-
-s =  "some random long string"
-
-t =  s << "\0"*40  << s << "\0"*32 << s << "bla bla bla!"
-t.hexdump(true)
-t.hexdump(false)
-
-4.times {t.chop!}
-
-t.hexdump(true)
-t.hexdump(false)
-
-
